@@ -1,5 +1,5 @@
 resource "google_storage_bucket" "ml_bucket" {
   name          = "character-ml-model"
-  location      = "US"
+  location      = "us-central1"
   force_destroy = true
 }
