@@ -2,3 +2,6 @@ numpy
 pandas
 scikit-learn
 google-cloud-storage
+fastapi
+uvicorn
+fastapi-cache2
