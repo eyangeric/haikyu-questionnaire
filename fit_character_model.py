@@ -1,17 +1,14 @@
-questions = {
-    1: "You have multiple interests that you are passionate about exploring.",
-    2: "Your natural instinct is to apply an analytical approach as opposed to going with gut feeling.",
-    3: "Regardless of the ups and downs, if you have an approach that has proven successful, you prefer to stick to your process to weather the storm.",
-    4: "You are willing to accept a smaller role in exchange to be surrounded by prestige.",
-    5: "You love getting admiration from an audience, recognizing your accomplishment(s).",
-    6: "When you come across an alternative method, you feel a strong desire to add it to your repertoire.",
-    7: "You want to search out talented individuals to learn from and match up against.",
-    8: "When surrounded by more naturally, talented people, even though you might not be able to catch up to them, you feel a strong desire to maximize yourself.",
-    9: "When there is an individual around you who you think is not putting in sufficient effort, you want to completely crush him/her.",
-    10: "When you have a goal, you are willing to do whatever amount of studying/life-hacking needed to reach it.",
-}
+from random import choice
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+import pickle
+from google.cloud import storage
+from io import BytesIO
+from config import ML_MODEL_GCS_BUCKET, ML_MODEL_FILE_NAME
 
-# maybe should have name and statement_scores keys
+
 character_score_ranges = [
     {
         "name": "Daichi Sawamura",
@@ -209,3 +206,64 @@ character_score_ranges = [
         },
     },
 ]
+
+
+def assign_score(score_range: tuple) -> float:
+    if score_range[0] == score_range[1]:
+        random_score = score_range[0]
+    else:
+        scores = np.arange(score_range[0], score_range[1], 0.1)
+        random_score = choice(scores)
+    return random_score
+
+
+def impute_scores(score_range: tuple,
+                  iterations: int) -> list:
+    scores = [assign_score(score_range) for i in range(iterations)]
+    return scores
+
+
+def score_questions(questions: dict,
+                    iterations: int) -> pd.DataFrame:
+    df = pd.DataFrame()
+    for key, value in questions.items():
+        df[key] = impute_scores(value, iterations)
+    return df
+
+
+def score_characters(characters: list,
+                     iterations: int) -> pd.DataFrame:
+    dfs = []
+    for character in characters:
+        name = character['name']
+        questions = character['questions']
+        character_df = score_questions(questions, iterations)
+        character_df['character'] = name
+        dfs.append(character_df)
+    df = pd.concat(dfs)
+    return df
+
+
+def fit_character_model(df: pd.DataFrame, outcome: str, features: list) -> RandomForestClassifier:
+    label_encoder = LabelEncoder()
+    clf = RandomForestClassifier()
+    df[f'{outcome}_num'] = label_encoder.fit_transform(df[f'{outcome}'])
+    clf.fit(df[features], df[f'{outcome}_num'])
+    return clf
+
+
+def export_model(model: RandomForestClassifier,
+                 bucket_name: str,
+                 file_name: str) -> None:
+    cs_client = storage.Client()
+    bucket = cs_client.bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    model_bytes = BytesIO()
+    pickle.dump(model, model_bytes)
+    model_bytes.seek(0)
+    blob.upload_from_file(model_bytes, content_type='application/octet-stream')
+
+
+df = score_characters(character_score_ranges, 10000)
+model = fit_character_model(df, 'character', list(range(1, 11)))
+export_model(model, ML_MODEL_GCS_BUCKET, ML_MODEL_FILE_NAME)
