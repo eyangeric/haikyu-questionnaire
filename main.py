@@ -7,6 +7,14 @@ class User(BaseModel):
     race: str
     q1: tuple[int, int]
     q2: tuple[int, int]
+    q3: tuple[int, int]
+    q4: tuple[int, int]
+    q5: tuple[int, int]
+    q6: tuple[int, int]
+    q7: tuple[int, int]
+    q8: tuple[int, int]
+    q9: tuple[int, int]
+    q10: tuple[int, int]
 
 
 app = FastAPI()

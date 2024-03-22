@@ -248,7 +248,7 @@ def fit_character_model(df: pd.DataFrame, outcome: str, features: list) -> Rando
     label_encoder = LabelEncoder()
     clf = RandomForestClassifier()
     df[f'{outcome}_num'] = label_encoder.fit_transform(df[f'{outcome}'])
-    clf.fit(df[features], df[f'{outcome}_num'])
+    clf.fit(df[features].to_numpy(), df[f'{outcome}_num'])
     return clf
 
 
